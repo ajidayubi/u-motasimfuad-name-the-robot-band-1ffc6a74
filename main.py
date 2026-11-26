@@ -15,28 +15,43 @@ LINE = (
 )
 
 
-def _validate(line: str) -> None:
-    """Mirror the competition gate: 1-200 characters, exactly one line."""
+def _validate(line: str) -> str:
+    """Mirror the competition gate: 1-200 characters, exactly one line.
+
+    Returns the line unchanged when it passes, so callers can chain it.
+    """
     if not 1 <= len(line) <= 200:
         raise ValueError(f"entry must be 1-200 characters, got {len(line)}")
     if line.strip() != line or "\n" in line or "\r" in line:
         raise ValueError("entry must be exactly one line, no surrounding whitespace")
+    return line
+
+
+def _output_path() -> str:
+    """Where the judge reads the entry: $MAKEFUN_OUTPUT_DIR or /output."""
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
+    os.makedirs(out_dir, exist_ok=True)
+    return os.path.join(out_dir, "entry.txt")
+
+
+def _write_entry(line: str) -> str:
+    """Write the validated line and prove it round-trips byte for byte."""
+    path = _output_path()
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(line)
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        written = f.read()
+    if written != line:
+        raise ValueError(
+            f"entry.txt mismatch: wrote {len(line)} chars, read back {len(written)}"
+        )
+    return path
 
 
 def main() -> None:
-    _validate(LINE)
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        f.write(LINE)
-    # Verify the file round-trips exactly: what the judge reads must be
-    # byte for byte the line we validated, with no added newline.
-    with open(path, "r", encoding="utf-8", newline="") as f:
-        written = f.read()
-    if written != LINE:
-        raise ValueError(f"entry.txt mismatch: wrote {len(LINE)} chars, read back {len(written)}")
-    print(LINE)
+    line = _validate(LINE)
+    _write_entry(line)
+    print(line)
 
 
 if __name__ == "__main__":
